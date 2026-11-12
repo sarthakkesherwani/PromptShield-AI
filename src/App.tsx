@@ -189,8 +189,20 @@ export default function App() {
     }, 60);
   };
 
+  const scanGeneration = useRef(0);
+  const invalidateScan = () => {
+    scanGeneration.current++;
+    setScanResult(null);
+    setAutoFixResult(null);
+    setUserConfirmed(false);
+    setSelectedFinding(null);
+    setScanError(null);
+    setIsScanning(false);
+  };
+
   const handleScanPrompt = async () => {
     if (!promptText.trim()) return;
+    const generation = ++scanGeneration.current;
     setIsScanning(true);
     setScanError(null);
     setScanResult(null);
@@ -211,12 +223,13 @@ export default function App() {
       }
 
       const data: ScanResult = await res.json();
+      if (generation !== scanGeneration.current) return;
       setScanResult(data);
       refreshStats();
     } catch (err: any) {
-      setScanError(err.message || 'Error occurred during prompt scan.');
+      if (generation === scanGeneration.current) setScanError(err.message || 'Could not scan this prompt. Try again.');
     } finally {
-      setIsScanning(false);
+      if (generation === scanGeneration.current) setIsScanning(false);
     }
   };
 
@@ -224,6 +237,7 @@ export default function App() {
     const file = fileToScan || selectedFile;
     if (!file) return;
 
+    const generation = ++scanGeneration.current;
     setIsScanning(true);
     setScanError(null);
     setScanResult(null);
@@ -246,17 +260,20 @@ export default function App() {
       }
 
       const data: ScanResult = await res.json();
+      if (generation !== scanGeneration.current) return;
       setScanResult(data);
       refreshStats();
     } catch (err: any) {
-      setScanError(err.message || 'Error occurred during file scan.');
+      if (generation === scanGeneration.current) setScanError(err.message || 'Could not read this file. Try another format.');
     } finally {
-      setIsScanning(false);
+      if (generation === scanGeneration.current) setIsScanning(false);
     }
   };
 
   const handleRunAutoFix = async () => {
     if (!scanResult) return;
+    const generation = scanGeneration.current;
+    setUserConfirmed(false);
     setIsAutoFixing(true);
 
     try {
@@ -272,10 +289,11 @@ export default function App() {
       }
 
       const data: AutoFixResult = await res.json();
+      if (generation !== scanGeneration.current) return;
       setAutoFixResult(data);
       refreshStats();
     } catch (err: any) {
-      alert(err.message || 'Error executing auto-fix.');
+      if (generation === scanGeneration.current) setScanError(err.message || 'Could not mask this content. Try scanning again.');
     } finally {
       setIsAutoFixing(false);
     }
@@ -310,6 +328,7 @@ export default function App() {
 
   const handleLoadPromptSample = (text: string) => {
     setCurrentTab('scanner');
+    invalidateScan();
     setInputMode('prompt');
     setPromptText(text);
     setTimeout(() => {
@@ -484,12 +503,19 @@ export default function App() {
                   </div>
                 </div>
 
+                <ol className="scan-steps" aria-label="Privacy review workflow">
+                  {['Add content', 'Inspect & mask', 'Review & export'].map((label, i) => {
+                    const stage = userConfirmed ? 2 : scanResult ? 1 : 0;
+                    return <li key={label} aria-current={i === stage ? 'step' : undefined} className={i <= stage ? 'is-current' : ''}><span>{i + 1}</span><div>{label}</div></li>;
+                  })}
+                </ol>
+                <p className="mb-5 text-sm text-neutral-500 dark:text-neutral-400">Your content stays on this device. Detection uses rules, so always review the result.</p>
                 {/* Main Input Card */}
                 <div className="bg-white dark:bg-[#161616] rounded-[20px] border border-[#e2e8f0] dark:border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] p-4 sm:p-8 mb-8">
                   {/* Tabs: Prompt vs File */}
                   <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-neutral-800 pb-4 mb-6">
                     <button
-                      onClick={() => setInputMode('prompt')}
+                      onClick={() => { invalidateScan(); setInputMode('prompt'); }}
                       className={`flex items-center space-x-2 px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
                         inputMode === 'prompt'
                           ? 'bg-[#ca0019] text-white shadow-sm'
@@ -501,7 +527,7 @@ export default function App() {
                     </button>
 
                     <button
-                      onClick={() => setInputMode('file')}
+                      onClick={() => { invalidateScan(); setInputMode('file'); }}
                       className={`flex items-center space-x-2 px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
                         inputMode === 'file'
                           ? 'bg-[#ca0019] text-white shadow-sm'
@@ -515,7 +541,7 @@ export default function App() {
 
                   {/* Error Message */}
                   {scanError && (
-                    <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-500/30 text-red-900 dark:text-red-200 text-xs flex items-center space-x-3">
+                    <div role="alert" className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-500/30 text-red-900 dark:text-red-200 text-xs flex items-center space-x-3">
                       <AlertTriangle className="w-5 h-5 text-[#ca0019] shrink-0" />
                       <span className="font-semibold">{scanError}</span>
                     </div>
@@ -527,7 +553,8 @@ export default function App() {
                       <div className="relative">
                         <textarea
                           value={promptText}
-                          onChange={(e) => setPromptText(e.target.value)}
+                          aria-label="Prompt to inspect"
+                          onChange={(e) => { invalidateScan(); setPromptText(e.target.value); }}
                           placeholder="Paste your AI prompt, system instructions, or confidential query here to scan for sensitive information..."
                           rows={6}
                           className="w-full rounded-2xl border border-slate-200 dark:border-neutral-800 p-4 font-mono text-xs text-slate-800 dark:text-neutral-200 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#ca0019] focus:border-[#ca0019] transition-all bg-slate-50/50 dark:bg-neutral-900"
@@ -539,7 +566,7 @@ export default function App() {
 
                       <div className="mt-4 flex items-center justify-between">
                         <button
-                          onClick={() => setPromptText('')}
+                          onClick={() => { invalidateScan(); setPromptText(''); }}
                           disabled={!promptText}
                           className="text-xs font-semibold text-neutral-400 hover:text-[#ca0019] disabled:opacity-40 cursor-pointer"
                         >
@@ -565,6 +592,10 @@ export default function App() {
                       <div
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={handleFileDrop}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Choose a document to scan"
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
                         onClick={() => fileInputRef.current?.click()}
                         className="border-2 border-dashed border-slate-300 dark:border-neutral-700 hover:border-[#ca0019] bg-slate-50/60 dark:bg-neutral-900/50 hover:bg-red-50/20 dark:hover:bg-red-950/10 rounded-2xl p-8 text-center cursor-pointer transition-all"
                       >
@@ -698,7 +729,8 @@ export default function App() {
                       onRunAutoFix={handleRunAutoFix}
                       userConfirmed={userConfirmed}
                       onToggleUserConfirmed={setUserConfirmed}
-                      canProceed={autoFixResult ? autoFixResult.can_proceed : scanResult.policy_decision === 'allow'}
+                      canProceed={!scanResult.is_incomplete && scanResult.policy_decision !== 'block' && (autoFixResult ? Boolean(autoFixResult.can_proceed) : scanResult.policy_decision === 'allow')}
+                      blockReason={scanResult.is_incomplete ? 'Some content could not be inspected. Try a readable text file or review the original manually.' : scanResult.policy_decision === 'block' ? 'This scan is blocked by your policy. Remove prohibited content and scan again.' : undefined}
                     />
 
                     <ExportControls
@@ -707,7 +739,7 @@ export default function App() {
                       policyDecision={scanResult.policy_decision}
                       reScanPolicyDecision={autoFixResult?.re_scan_policy_decision}
                       userConfirmed={userConfirmed}
-                      canExport={Boolean(autoFixResult || scanResult.findings.length === 0)}
+                      canExport={!scanResult.is_incomplete && scanResult.policy_decision !== 'block' && Boolean(autoFixResult?.can_proceed || scanResult.findings.length === 0)}
                     />
                   </div>
                 )}

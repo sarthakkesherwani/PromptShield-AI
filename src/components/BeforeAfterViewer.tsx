@@ -13,6 +13,7 @@ interface BeforeAfterViewerProps {
   userConfirmed: boolean;
   onToggleUserConfirmed: (checked: boolean) => void;
   canProceed: boolean;
+  blockReason?: string;
 }
 
 export const BeforeAfterViewer: React.FC<BeforeAfterViewerProps> = ({
@@ -23,6 +24,7 @@ export const BeforeAfterViewer: React.FC<BeforeAfterViewerProps> = ({
   onRunAutoFix,
   userConfirmed,
   onToggleUserConfirmed,
+  blockReason,
 }) => {
   const reScanDecision = autoFixResult?.re_scan_policy_decision || 'warn';
   const badgeProps = getDecisionBadgeProps(reScanDecision);
@@ -46,7 +48,7 @@ export const BeforeAfterViewer: React.FC<BeforeAfterViewerProps> = ({
 
         <UniquesButton
           onClick={onRunAutoFix}
-          disabled={isAutoFixing || findings.length === 0}
+          disabled={isAutoFixing || findings.length === 0 || Boolean(blockReason)}
         >
           <span className="inline-flex items-center gap-2">
             <RefreshCw className={`w-3.5 h-3.5 ${isAutoFixing ? 'animate-spin' : ''}`} />
@@ -55,6 +57,7 @@ export const BeforeAfterViewer: React.FC<BeforeAfterViewerProps> = ({
         </UniquesButton>
       </div>
 
+      {blockReason && <p role="status" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{blockReason}</p>}
       {/* Auto-Fix Summary / Placeholder mapping strip */}
       {autoFixResult && (
         <div className="my-4 p-4 rounded-xl bg-neutral-900 text-neutral-100 border border-neutral-800">

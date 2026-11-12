@@ -25,6 +25,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResponse, setSubmitResponse] = useState<any | null>(null);
+  const [copyStatus, setCopyStatus] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const effectiveDecision = reScanPolicyDecision || policyDecision;
@@ -68,6 +69,18 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     }
   };
 
+  const handleCopy = async () => {
+    if (!isAllowedToProceed || !sessionId) return;
+    setCopyStatus('');
+    setErrorMessage(null);
+    try {
+      const response = await fetch('/api/export', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session_id: sessionId, export_format: 'txt', user_confirmed: userConfirmed}) });
+      if (!response.ok) throw new Error((await response.json()).detail || 'Export is not approved.');
+      await navigator.clipboard.writeText(await response.text());
+      setCopyStatus('Copied sanitized text');
+    } catch { setErrorMessage('Could not copy. Use Download Sanitized TXT instead.'); }
+  };
+
   const handleSimulateSubmit = async () => {
     if (!sessionId) return;
     setErrorMessage(null);
@@ -109,7 +122,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
               <span>Approved Export &amp; Simulated Submission</span>
             </h3>
             <p className="text-xs text-gray-600 dark:text-neutral-400 mt-0.5">
-              Browser-validated policy gate prevents data leakage and unsanitized exfiltration.
+              Review the sanitized result before copying or downloading. AI submission below is a demo.
             </p>
           </div>
         </div>
@@ -135,6 +148,10 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         </div>
       )}
 
+      <div className="mt-4 flex items-center gap-3">
+        <button disabled={!isAllowedToProceed} onClick={handleCopy} className="rounded-full border border-slate-300 px-4 py-2.5 text-xs font-semibold text-slate-800 disabled:opacity-40 dark:border-neutral-700 dark:text-white">Copy sanitized text</button>
+        <span role="status" className="text-xs text-emerald-700 dark:text-emerald-400">{copyStatus}</span>
+      </div>
       {/* Action Buttons */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button

@@ -197,3 +197,17 @@ html.theme-fade *::after {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+.scan-steps { display: flex; margin: 8px 0 16px; gap: 12px; list-style: none; }
+.scan-steps li { flex: 1; display: flex; align-items: center; gap: 9px; padding: 14px 12px; border-radius: 14px; background: #f5f5f5; color: #737373; font-size: 13px; }
+.scan-steps li > span { display: grid; place-items: center; width: 25px; height: 25px; flex-shrink: 0; border: 1px solid #d4d4d4; border-radius: 50%; font-weight: 600; }
+.scan-steps li.is-current { background: #fff1f3; color: #b60020; }
+.scan-steps li.is-current > span { background: #ca0019; color: white; border-color: #ca0019; }
+.dark .scan-steps li { background: #1b1b1b; color: #a3a3a3; }
+.dark .scan-steps li.is-current { background: #32131a; color: #ffa4b3; }
+button:focus-visible, [role="button"]:focus-visible, a:focus-visible { outline: 2px solid #e52b49; outline-offset: 4px; }
+.dark .hero-intro > button { color: #ff8297; }
+@media(max-width: 639px) {
+  .scan-steps { gap: 6px; }
+  .scan-steps li { flex-direction: column; align-items: flex-start; padding: 12px 8px; gap: 7px; font-size: 12px; }
+}

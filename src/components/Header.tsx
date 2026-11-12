@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Menu, X, FileCheck, History, Sliders, Sparkles, ChevronRight } from 'lucide-react';
 
 interface HeaderProps {
@@ -23,6 +23,13 @@ export const Header: React.FC<HeaderProps> = ({
   themeToggleRef,
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    document.addEventListener('keydown', onEscape);
+    return () => document.removeEventListener('keydown', onEscape);
+  }, [drawerOpen]);
 
   const navItems = [
     { id: 'scanner' as const, label: 'SCANNER', mobileLabel: 'Scanner Workspace', icon: <FileCheck className="w-4 h-4" /> },
@@ -131,7 +138,9 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => setDrawerOpen(!drawerOpen)}
             className="p-2.5 rounded-xl hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80 transition-all duration-300 cursor-pointer border border-transparent hover:border-neutral-200 dark:hover:border-neutral-700"
-            aria-label="Open Navigation Menu"
+            aria-label={drawerOpen ? "Close Navigation Menu" : "Open Navigation Menu"}
+            aria-expanded={drawerOpen}
+            aria-controls="site-navigation"
           >
             {drawerOpen ? (
               <X className="w-5 h-5 text-black dark:text-white" />
@@ -150,6 +159,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setDrawerOpen(false)}
           />
           <aside
+            id="site-navigation"
+            aria-label="Site navigation"
             className="relative z-10 m-2 sm:m-4 w-[calc(100vw-32px)] sm:w-[290px] h-[calc(100%-16px)] sm:h-[calc(100%-32px)] rounded-2xl border border-neutral-200/60 dark:border-neutral-800 shadow-2xl flex flex-col overflow-hidden animate-fadeIn"
             style={{
               background: isDarkMode ? 'rgba(30, 30, 30, 0.98)' : 'rgba(255, 248, 248, 0.98)',
@@ -163,6 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <button
                 onClick={() => setDrawerOpen(false)}
+                aria-label="Close navigation"
                 className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-neutral-800 cursor-pointer transition-colors text-neutral-500 hover:text-[#ca0019]"
               >
                 <X className="w-5 h-5" />
