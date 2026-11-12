@@ -21,6 +21,7 @@ import {
   Eye,
 } from 'lucide-react';
 
+import TextCursor from './components/TextCursor';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { RiskMeter } from './components/RiskMeter';
@@ -367,6 +368,7 @@ export default function App() {
             {/* SECTION 1: HERO (Exact structure of theuniques.in Home Hero)            */}
             {/* ═══════════════════════════════════════════════════════════════════════ */}
             <section className="w-full flex flex-col items-center justify-center bg-transparent relative pt-12 sm:pt-16 pb-6">
+              <TextCursor text="Privacy first." mode="stamp" fontSize={20} spacing={140} maxPoints={4} color="#ca0019" shrink={0.4} fade={0.75} smoothing={0.25} exitDuration={0.4} removalInterval={90} followMouseDirection={true} keepUpright={true} randomFloat={true} popIn={true} />
               <div className="relative z-10 w-full flex flex-col items-center">
                 {/* Centered Brand Stamp */}
                 <div className="text-lg font-medium text-gray-900 dark:text-white flex flex-col items-center gap-1.5">
