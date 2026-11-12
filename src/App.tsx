@@ -421,10 +421,11 @@ export default function App() {
 
               {/* Smooth Horizontal Marquee Feature Strip */}
               <div className="w-full overflow-hidden py-4 relative z-10 bg-transparent">
-                <div className="feature-strip flex gap-4">
+                <div className="animate-marquee flex gap-0">
                   {[...MARQUEE_CARDS, ...MARQUEE_CARDS].map((card, idx) => (
                     <div
                       key={idx}
+                      aria-hidden={idx >= MARQUEE_CARDS.length ? true : undefined}
                       className="min-w-[280px] max-w-[290px] mx-2 p-5 rounded-xl shadow-md bg-white dark:bg-[#161616] border border-slate-200/80 dark:border-white/[0.08] flex flex-col justify-between relative overflow-hidden"
                     >
                       <div className="absolute top-0 right-0 w-10 h-10 bg-[#ca0019]/5 rounded-bl-2xl" />
