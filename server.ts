@@ -4,7 +4,6 @@
  * Zero Python dependency — everything runs in TypeScript.
  */
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -19,7 +18,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
 
 // ─── Demo File Generation ───────────────────────────────────────────────────
 
@@ -87,8 +86,8 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024;
 
 // ─── Start Server ───────────────────────────────────────────────────────────
 
-async function startServer() {
-  await ensureDemoFiles();
+async function createApp() {
+  if (!process.env.VERCEL) await ensureDemoFiles();
 
   const app = express();
   app.use(express.json({ limit: '5mb' }));
@@ -422,19 +421,25 @@ async function startServer() {
   // Vite Dev Middleware
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const vite = await createViteServer({
-    server: { middlewareMode: true, hmr: process.env.DISABLE_HMR !== 'true' },
-    appType: 'spa',
-  });
-  app.use(vite.middlewares);
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[PromptShield AI] Server running at http://0.0.0.0:${PORT}`);
-    console.log('[PromptShield AI] All API endpoints ready — zero Python dependency.');
-  });
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+    app.use(express.static(path.join(__dirname, 'dist')));
+    app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
+  } else {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true, hmr: process.env.DISABLE_HMR !== 'true' },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  }
+  return app;
 }
 
-startServer().catch(err => {
-  console.error('[Fatal]', err);
-  process.exit(1);
-});
+const app = await createApp();
+export default app;
+
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[PromptShield AI] Server running at http://0.0.0.0:${PORT}`);
+  });
+}
