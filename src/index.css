@@ -1,0 +1,139 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: "Absans";
+  src: url("/fonts/absans-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html, body {
+    font-family: "Absans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Signature The Uniques Brushstroke Highlight */
+.brush-bg {
+  position: relative;
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  z-index: 1;
+}
+
+.brush-bg::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-1.2deg);
+  width: 110%;
+  height: 115%;
+  background-color: var(--brush-color, #ca0019);
+  z-index: -1;
+  clip-path: polygon(
+    2% 20%, 10% 8%, 20% 15%, 35% 4%, 50% 12%, 65% 2%, 80% 10%, 95% 5%,
+    98% 25%, 96% 45%, 98% 65%, 94% 85%, 90% 95%, 75% 92%, 60% 98%,
+    45% 88%, 30% 96%, 15% 90%, 5% 98%, 2% 80%, 4% 50%, 1% 30%
+  );
+}
+
+/* Geometric Polygon Clips from theuniques.in */
+.cta-clip {
+  clip-path: polygon(
+    0% 0%, 21% 0%, 24% 40px, 100% 40px,
+    100% 100%, 77% 100%, 74% calc(100% - 40px), 0 calc(100% - 40px)
+  );
+}
+
+.layout-bottom-clip {
+  clip-path: polygon(
+    0 0, 100% 0, 100% 100%, 77% 100%, 74% calc(100% - 40px), 0 calc(100% - 40px)
+  );
+}
+
+@media (max-width: 640px) {
+  .layout-bottom-clip {
+    clip-path: polygon(
+      0 0, 100% 0, 100% 100%, 66% 100%, 60% calc(100% - 24px), 0 calc(100% - 24px)
+    );
+  }
+  .cta-clip {
+    clip-path: polygon(
+      0% 0%, 28% 0%, 34% 24px, 100% 24px,
+      100% 100%, 70% 100%, 64% calc(100% - 24px), 0 calc(100% - 24px)
+    );
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marqueeScroll 32s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Ink Bleed WebGL2 Canvas Overlay */
+.ink-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.ink-canvas.is-active {
+  visibility: visible;
+}
+
+.theme-toggle__icon {
+  overflow: visible;
+}
+
+.theme-toggle__body {
+  fill: currentColor;
+}
+
+.theme-toggle__rays {
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+html.theme-fade,
+html.theme-fade *,
+html.theme-fade *::before,
+html.theme-fade *::after {
+  transition:
+    background-color var(--theme-fade, 0.45s) ease,
+    border-color var(--theme-fade, 0.45s) ease,
+    color var(--theme-fade, 0.45s) ease,
+    fill var(--theme-fade, 0.45s) ease,
+    stroke var(--theme-fade, 0.45s) ease,
+    box-shadow var(--theme-fade, 0.45s) ease !important;
+}
+
