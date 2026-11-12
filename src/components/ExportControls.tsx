@@ -109,7 +109,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
               <span>Approved Export &amp; Simulated Submission</span>
             </h3>
             <p className="text-xs text-gray-600 dark:text-neutral-400 mt-0.5">
-              Backend-validated policy gate prevents data leakage and unsanitized exfiltration.
+              Browser-validated policy gate prevents data leakage and unsanitized exfiltration.
             </p>
           </div>
         </div>

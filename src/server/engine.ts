@@ -189,6 +189,32 @@ export class PolicyStore {
     this.settings = { ...DEFAULT_SETTINGS };
   }
 
+  restoreLocalState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('promptshield.preferences.v1') || 'null');
+      if (saved && Array.isArray(saved.rules) && saved.rules.length === DEFAULT_RULES.length && saved.rules.every((r: any) => typeof r.id === 'string' && r.config && typeof r.enabled === 'boolean')) {
+        this.rules = saved.rules;
+        this.settings = { ...DEFAULT_SETTINGS, ...saved.settings };
+      }
+      const logs = JSON.parse(localStorage.getItem('promptshield.audit.v1') || '[]');
+      if (Array.isArray(logs)) this.auditLogs = logs.slice(0, 500).filter((l: any) => l && typeof l.id === 'string' && typeof l.risk_score === 'number');
+    } catch { /* Restricted or full storage leaves the scanner usable in memory. */ }
+  }
+
+  persistLocalState() {
+    try {
+      localStorage.setItem('promptshield.preferences.v1', JSON.stringify({ rules: this.rules, settings: this.settings }));
+      const logs = this.auditLogs.map(l => ({
+        id: l.id, timestamp: l.timestamp, source_type: l.source_type,
+        safe_source_label: l.source_type + ' scan', finding_counts: l.finding_counts,
+        total_findings: l.total_findings, risk_score: l.risk_score,
+        policy_decision: l.policy_decision, action_taken: l.action_taken,
+        incomplete_scan: l.incomplete_scan,
+      }));
+      localStorage.setItem('promptshield.audit.v1', JSON.stringify(logs));
+    } catch { /* Storage may be disabled; active-session state still works. */ }
+  }
+
   getRules(): PolicyRule[] { return this.rules; }
 
   updateRule(ruleId: string, updates: Partial<PolicyRule & { config?: any }>) {

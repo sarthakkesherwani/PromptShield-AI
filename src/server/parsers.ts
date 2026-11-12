@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 /**
  * PromptShield AI — File Parsers (PDF, XLSX, CSV, TXT/Prompt)
  * Pure TypeScript — no Python dependency.
@@ -189,7 +190,7 @@ function extractNoteText(note: any): string {
 
 export async function parseAndScanXlsx(buf: Buffer, filename: string, engine: DetectionEngine): Promise<ScanResult> {
   let ExcelJS: any;
-  try { ExcelJS = (await import('exceljs')).default; } catch {
+  try { ExcelJS = (await import('exceljs/dist/exceljs.min.js')).default; } catch {
     throw new Error('ExcelJS library is not available. Cannot parse XLSX files.');
   }
 
@@ -276,7 +277,7 @@ export async function sanitizeXlsx(
 ): Promise<{ buffer: Buffer; meta: import('./engine.ts').AutoFixResult }> {
   const { Sanitizer } = await import('./engine.ts');
   let ExcelJS: any;
-  try { ExcelJS = (await import('exceljs')).default; } catch {
+  try { ExcelJS = (await import('exceljs/dist/exceljs.min.js')).default; } catch {
     throw new Error('ExcelJS not available');
   }
 
@@ -332,7 +333,7 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
   const safeName = filename.replace(/^.*[\\/]/, '');
   let PDFParseCtor: any;
   try {
-    const mod: any = await import('pdf-parse');
+    const mod: any = await import('./pdf-browser');
     PDFParseCtor = mod.PDFParse || mod.default?.PDFParse || mod.default;
   } catch {
     return {
@@ -342,7 +343,7 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
       findings: [],
       is_incomplete: true,
       coverage_notes: 'PDF parsing library not available. File cannot be verified as safe.',
-      unsupported_elements: ['pdf-parse library not installed. Install it with: npm install pdf-parse'],
+      unsupported_elements: ['PDF inspection is unavailable in this browser edition. Use TXT, CSV, XLSX or DOCX instead.'],
       risk_score: 50,
       policy_decision: 'warn',
       decision_summary: 'Warning: PDF could not be parsed. Incomplete scan.',
@@ -378,7 +379,7 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
         }
       }
     } catch {
-      // ignore non-critical image metadata check failure
+      throw new Error('PDF image coverage could not be verified');
     }
 
     // Check document metadata fields (Author, Subject, Title, Keywords)
@@ -407,6 +408,7 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
       }
     }
 
+    const emptyPageCount = pages.filter(p => !p.text.trim()).length;
     const totalText = pages.map((p) => p.text).join('\n').trim();
     if (!totalText) {
       return {
@@ -441,7 +443,8 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
     }
 
     const unsupported: string[] = [];
-    let isIncomplete = false;
+    let isIncomplete = emptyPageCount > 0;
+    if (emptyPageCount) unsupported.push(`${emptyPageCount} page(s) have no readable text; review them manually.`);
     if (embeddedImagesCount > 0) {
       isIncomplete = true;
       unsupported.push(

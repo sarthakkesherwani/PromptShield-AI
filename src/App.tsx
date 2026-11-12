@@ -50,10 +50,10 @@ const CAPABILITY_TAGS = [
 
 const MARQUEE_CARDS = [
   { tag: 'XLSX Guard', title: 'Sheet1!B2 Cell Pinning', desc: 'Inspects spreadsheets without executing formulas.', badge: 'Structural Export' },
-  { tag: 'PDF Guard', title: 'Page-Level Text Audit', desc: 'Honest text extraction — zero fake black-box overlays.', badge: 'PyMuPDF / Parse' },
+  { tag: 'PDF Guard', title: 'PDF Text Inspection', desc: 'Inspects PDF text by page; flags uninspected images.', badge: 'Page-Level Findings' },
   { tag: 'Auto-Fix', title: '[EMAIL_1] Consistency', desc: 'Repeated sensitive values get deterministic placeholders.', badge: 'Re-Scan Verified' },
-  { tag: 'Policy Gate', title: 'Strict Block Override', desc: 'Low risk scores never override critical secret rules.', badge: 'Backend Enforced' },
-  { tag: 'Audit Trail', title: 'Zero Raw PII Saved', desc: 'Logs metadata counts only — raw prompts stay ephemeral.', badge: 'Compliance Ready' },
+  { tag: 'Policy Gate', title: 'Strict Block Override', desc: 'Low risk scores never override critical secret rules.', badge: 'Browser Enforced' },
+  { tag: 'Audit Trail', title: 'Zero Raw PII Saved', desc: 'Logs metadata counts only — raw prompts stay ephemeral.', badge: 'Saved on This Device' },
   { tag: 'CSV Guard', title: 'Row & Column Tracking', desc: 'Handles quoted fields and masks sensitive columns cleanly.', badge: 'RFC-4180 Safe' },
 ];
 
@@ -333,7 +333,7 @@ export default function App() {
 
       {/* Main Content Surface with layout-bottom-clip over Fixed Footer */}
       <div
-        className="relative z-10 bg-white dark:bg-[#0a0a0a] layout-bottom-clip overflow-x-clip min-h-screen"
+        className="relative z-10 bg-white dark:bg-[#0a0a0a] mobile-content layout-bottom-clip overflow-x-clip min-h-screen"
         style={{
           marginBottom: `${footerHeight}px`,
           filter: 'drop-shadow(0 20px 50px rgba(0,0,0,0.1))',
@@ -360,7 +360,7 @@ export default function App() {
                 </div>
 
                 {/* Centered Hero Headline + Brushstroke Highlight */}
-                <div className="text-center px-6 pt-10 pb-8">
+                <div className="hero-intro text-center px-5 sm:px-6 pt-7 sm:pt-10 pb-8">
                   <button
                     onClick={() => setIsDemoModalOpen(true)}
                     className="text-sm font-medium px-3.5 py-1 border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-full w-max mx-auto text-[#ca0019] mb-4 inline-block hover:border-[#ca0019] transition-colors cursor-pointer"
@@ -368,7 +368,7 @@ export default function App() {
                     Pre-Upload AI Privacy Guard ✨
                   </button>
 
-                  <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white leading-[1.4]">
+                  <h1 className="text-[30px] sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white leading-[1.3] sm:leading-[1.4]">
                     Inspect Prompts &amp; Files Before <br className="hidden sm:inline" />
                     <span className="brush-bg text-white [--brush-color:#ca0019] inline-block mt-2">
                       Sending to AI Models.
@@ -376,7 +376,7 @@ export default function App() {
                   </h1>
 
                   <p className="text-gray-600 dark:text-neutral-400 my-5 max-w-2xl mx-auto text-base leading-relaxed">
-                    Experience zero-leak AI workflows with PromptShield AI — deep file inspection, deterministic numbered placeholders, and strict compliance enforcement.
+                    Find sensitive data before you share it with AI. Scan, mask, and review your prompts and documents.
                   </p>
 
                   <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
@@ -402,7 +402,7 @@ export default function App() {
 
               {/* Smooth Horizontal Marquee Feature Strip */}
               <div className="w-full overflow-hidden py-4 relative z-10 bg-transparent">
-                <div className="animate-marquee flex gap-4">
+                <div className="feature-strip flex gap-4">
                   {[...MARQUEE_CARDS, ...MARQUEE_CARDS].map((card, idx) => (
                     <div
                       key={idx}
@@ -485,7 +485,7 @@ export default function App() {
                 </div>
 
                 {/* Main Input Card */}
-                <div className="bg-white dark:bg-[#161616] rounded-[20px] border border-[#e2e8f0] dark:border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] p-6 sm:p-8 mb-8">
+                <div className="bg-white dark:bg-[#161616] rounded-[20px] border border-[#e2e8f0] dark:border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] p-4 sm:p-8 mb-8">
                   {/* Tabs: Prompt vs File */}
                   <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-neutral-800 pb-4 mb-6">
                     <button
@@ -497,7 +497,7 @@ export default function App() {
                       }`}
                     >
                       <FileText className="w-4 h-4" />
-                      <span>Prompt Text Scanner</span>
+                      <span><span className="sm:hidden">Prompt Scanner</span><span className="hidden sm:inline">Prompt Text Scanner</span></span>
                     </button>
 
                     <button
@@ -509,7 +509,7 @@ export default function App() {
                       }`}
                     >
                       <UploadCloud className="w-4 h-4" />
-                      <span>DeepFile Guard (PDF / DOCX / XLSX / CSV / JSON / TXT)</span>
+                      <span>DeepFile Guard<span className="hidden sm:inline"> (PDF / DOCX / XLSX / CSV / JSON / TXT)</span></span>
                     </button>
                   </div>
 
@@ -778,7 +778,7 @@ export default function App() {
                       <div className="mb-2 sm:mb-3 w-full">
                         <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white inline-flex items-center">
                           <span>{stat.value}</span>
-                          <span className="text-base sm:text-lg font-bold text-[#ca0019] ml-1 animate-pulse">
+                          <span className="text-base sm:text-lg font-bold text-[#ca0019] ml-1">
                             +
                           </span>
                         </span>
@@ -837,7 +837,7 @@ export default function App() {
                         Exact Cell, Row &amp; Page Pinning
                       </h5>
                       <p className="text-sm text-gray-600 dark:text-neutral-400 leading-relaxed">
-                        Pins Excel matches down to exact worksheet coordinates (e.g. <code>Sheet1!B2</code>), tracks CSV row/column pairs, extracts PDF page numbers honestly, and flags unreadable binary files instead of claiming Safe.
+                        Pins Excel matches down to exact worksheet coordinates (e.g. <code>Sheet1!B2</code>), tracks CSV row/column pairs, inspects readable PDF text by page, and flags unreadable binary files instead of claiming Safe.
                       </p>
                     </div>
                   </div>
@@ -864,10 +864,10 @@ export default function App() {
                         <Lock className="w-8 h-8" />
                       </div>
                       <h3 className="font-semibold capitalize mb-2 text-xl">
-                        Backend Policy Gate
+                        Browser Policy Gate
                       </h3>
                       <p className="text-sm text-white/90 leading-relaxed">
-                        Blocked API keys and confidential keywords are enforced directly on the server — low risk scores or Auto-Fix never silently override a strict block rule.
+                        Blocked API keys and confidential keywords are enforced locally in this browser — low risk scores or Auto-Fix never silently override a strict block rule.
                       </p>
                     </div>
                   </div>
@@ -940,7 +940,7 @@ export default function App() {
       </div>
 
       {/* Fixed Sticky-Reveal Footer (Exact layout-bottom-clip reveal pattern from G6) */}
-      <div ref={footerRef} className="fixed bottom-0 left-0 w-full z-0">
+      <div ref={footerRef} className="site-footer fixed bottom-0 left-0 w-full z-0">
         <Footer
           onSelectTab={setCurrentTab}
           onOpenDemos={() => setIsDemoModalOpen(true)}

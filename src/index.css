@@ -137,3 +137,63 @@ html.theme-fade *::after {
     box-shadow var(--theme-fade, 0.45s) ease !important;
 }
 
+
+/* Tap feedback sits above the interface without capturing pointer events. */
+.tap-effects {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+  overflow: hidden;
+}
+.tap-ripple {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  border: 1.5px solid rgba(225, 25, 60, 0.8);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(235, 30, 65, 0.2), rgba(235, 30, 65, 0.04) 65%, transparent 70%);
+  box-shadow: 0 0 14px rgba(225, 25, 60, 0.12);
+  animation: tap-bloom 480ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+.dark .tap-ripple { border-color: rgba(255, 100, 124, 0.9); }
+@keyframes tap-bloom {
+  from { transform: scale(0.15); opacity: 0.95; }
+  to { transform: scale(1.65); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tap-effects { display: none; }
+}
+
+/* Phone layout: usable controls, readable content, and a flowing footer. */
+@media (max-width: 639px) {
+  html, body { max-width: 100%; overflow-x: clip; }
+  nav { padding: 12px 16px; grid-template-columns: minmax(0, 1fr) auto; }
+  nav > div { min-width: 0; }
+  .hero-intro { width: 100%; }
+  .hero-intro h1 { overflow-wrap: break-word; }
+  .hero-intro .brush-bg { padding: 0.12em 0.2em; }
+  .hero-intro .brush-bg::before { width: 103%; }
+  .hero-intro p { font-size: 15px; }
+  .hero-intro > div:last-child { flex-direction: column; gap: 12px; }
+  .hero-intro > div:last-child > button { min-height: 46px; width: 100%; max-width: 300px; justify-content: center; }
+  #scanner-workspace { scroll-margin-top: 90px; }
+  #scanner-workspace button { min-height: 44px; }
+  #scanner-workspace textarea { font-size: 16px; min-height: 200px; }
+  #scanner-workspace .border-b > button { flex: 1 1 120px; padding-inline: 12px; justify-content: center; letter-spacing: 0; }
+  input:not([type="checkbox"]):not([type="range"]), select, textarea { font-size: 16px; }
+  .mobile-content { margin-bottom: 0 !important; clip-path: none; filter: none !important; }
+  .site-footer { position: relative; }
+  footer button { min-height: 40px; text-align: left; }
+  footer h4 { font-size: 15px; }
+  pre { max-width: 100%; overflow-x: auto; }
+}
+
+.feature-strip { overflow-x: auto; padding: 0 16px 12px; scroll-snap-type: x mandatory; }
+.feature-strip > div { scroll-snap-align: start; }
+.feature-strip > div:nth-child(n+7) { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
