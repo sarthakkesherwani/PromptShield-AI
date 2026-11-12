@@ -1,3 +1,4 @@
+import { prepareExport } from './server/export';
 import { Buffer } from 'buffer';
 import {store, getEngine, Sanitizer, type AutoFixResult, type ScanResult} from './server/engine';
 import {parseAndScanPrompt, parseAndScanXlsx, parseAndScanCsv, parseAndScanPdf, parseAndScanDocx, parseAndScanJson, sanitizeXlsx} from './server/parsers';
@@ -173,12 +174,12 @@ const upload={single:()=>null};
       afResult = meta;
       xlsxBytes = buffer;
     } else if (d.source_type === 'csv' && d.csv_rows) {
-      afResult = Sanitizer.sanitizeCsv(d.csv_rows, findings, engine, d.csv_delimiter || ',');
+      afResult = Sanitizer.sanitizeCsv(d.csv_rows, findings, engine, ',');
     } else {
       afResult = Sanitizer.sanitizePrompt(d.raw_text || '', findings, engine);
     }
 
-    const can_proceed = afResult.re_scan_policy_decision !== 'block' &&
+    const can_proceed = afResult.re_scan_findings.length === 0 && afResult.re_scan_policy_decision === 'allow' &&
       afResult.re_scan_risk_score < engine.settings.block_threshold;
 
     d.sanitized_data = afResult;
@@ -197,50 +198,24 @@ const upload={single:()=>null};
 
   // ─── Export ─────────────────────────────────────────────────────────────
 
-  app.post('/api/export', (req, res) => {
+  app.post('/api/export', async (req, res) => {
     cleanSessions();
-    const sess = SESSIONS.get(req.body.session_id);
-    if (!sess) return res.status(404).json({ detail: 'Session expired. Please re-scan.' });
-
-    if (!req.body.user_confirmed) {
-      return res.status(403).json({ detail: 'Explicit user confirmation required before export.' });
-    }
-    const d = sess.data;
-    if (d.is_incomplete || d.policy_decision === 'block') return res.status(403).json({detail: 'Incomplete scans and strict policy blocks cannot be exported, submitted, or auto-fixed.'});
-    const san = d.sanitized_data as AutoFixResult | undefined;
-
-    if (!san && d.findings?.length > 0) {
-      return res.status(403).json({ detail: 'Content must be sanitized before export.' });
-    }
-    if (san?.re_scan_policy_decision === 'block') {
-      return res.status(403).json({ detail: 'Content BLOCKED by policy. Export disabled.' });
-    }
-
-    const fmt = (req.body.export_format || 'txt').toLowerCase();
-
-    store.addAuditLog({
-      source_type: d.source_type, safe_source_label: d.safe_source_label || '',
-      finding_counts: {}, total_findings: 0,
-      risk_score: san?.re_scan_risk_score ?? 0, policy_decision: 'allow',
-      action_taken: `exported_${fmt}`, incomplete_scan: false,
-    });
-
-    if (fmt === 'xlsx' && d.sanitized_xlsx_bytes) {
-      res.setHeader('Content-Disposition', 'attachment; filename="sanitized_export.xlsx"');
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      return res.send(d.sanitized_xlsx_bytes);
-    }
-
-    const text = san?.sanitized_content || d.raw_text || '';
-    const ct = fmt === 'csv' ? 'text/csv' : 'text/plain; charset=utf-8';
-    res.setHeader('Content-Disposition', `attachment; filename="sanitized_export.${fmt}"`);
-    res.setHeader('Content-Type', ct);
-    res.send(text);
+    const session = SESSIONS.get(req.body.session_id);
+    if (!session) return res.status(404).json({detail: 'Session expired. Please scan again.'});
+    if (req.body.user_confirmed !== true) return res.status(403).json({detail: 'Review the preview and tick the confirmation before exporting.'});
+    try {
+      const format = String(req.body.export_format || 'txt').toLowerCase();
+      const exported = await prepareExport(session.data, format);
+      store.addAuditLog({source_type: session.data.source_type, safe_source_label: session.data.source_type + ' scan', finding_counts: {}, total_findings: 0, risk_score: 0, policy_decision: 'allow', action_taken: `exported_${format}`, incomplete_scan: false});
+      res.setHeader('Content-Type', exported.contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${exported.filename}"`);
+      return res.send(exported.body);
+    } catch (err: any) { return res.status(403).json({detail: err.message}); }
   });
 
   // ─── Simulate Submit ───────────────────────────────────────────────────
 
-  app.post('/api/simulate-submit', (req, res) => {
+  app.post('/api/simulate-submit', async (req, res) => {
     cleanSessions();
     const sess = SESSIONS.get(req.body.session_id);
     if (!sess) return res.status(404).json({ detail: 'Session expired. Please re-scan.' });
@@ -252,7 +227,8 @@ const upload={single:()=>null};
     if (!san && d.findings?.length > 0) return res.status(403).json({ detail: 'Content must be sanitized first.' });
     if (san?.re_scan_policy_decision === 'block') return res.status(403).json({ detail: 'Blocked by policy.' });
 
-    const payload = san?.sanitized_content || d.raw_text || '';
+    let payload: string;
+    try { payload = String((await prepareExport(d, 'txt')).body); } catch (err: any) { return res.status(403).json({detail: err.message}); }
     const snippet = payload.length > 200 ? payload.slice(0, 200) + '...' : payload;
 
     store.addAuditLog({

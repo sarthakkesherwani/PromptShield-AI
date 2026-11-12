@@ -487,7 +487,9 @@ export class Sanitizer {
   static sanitizeCsv(rows: string[][], findings: Finding[], engine: DetectionEngine, delimiter = ','): AutoFixResult {
     const map = this.generatePlaceholderMap(findings);
     const formatCell = (cell: string) => {
-      if (cell.includes(delimiter) || cell.includes('"') || cell.includes('\n')) {
+      // Quoting alone does not stop spreadsheet formula execution.
+      if (/^[\s]*[=+@-]/.test(cell) || /^[\t\r]/.test(cell)) cell = "'" + cell;
+      if (cell.includes(delimiter) || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
         return `"${cell.replace(/"/g, '""')}"`;
       }
       return cell;

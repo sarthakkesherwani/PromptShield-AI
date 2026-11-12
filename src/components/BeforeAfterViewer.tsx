@@ -25,6 +25,7 @@ export const BeforeAfterViewer: React.FC<BeforeAfterViewerProps> = ({
   userConfirmed,
   onToggleUserConfirmed,
   blockReason,
+  canProceed,
 }) => {
   const reScanDecision = autoFixResult?.re_scan_policy_decision || 'warn';
   const badgeProps = getDecisionBadgeProps(reScanDecision);
@@ -139,21 +140,20 @@ export const BeforeAfterViewer: React.FC<BeforeAfterViewerProps> = ({
               )}
             </span>
             <span className="text-[11px] text-red-700 dark:text-red-300">
-              {autoFixResult ? 'Numbered Placeholders Applied' : 'Pending Auto-Fix'}
+              {autoFixResult ? 'Numbered Placeholders Applied' : findings.length ? 'Pending Auto-Fix' : 'No masking needed'}
             </span>
           </div>
           <div className="p-4 font-mono text-xs text-slate-800 dark:text-neutral-200 whitespace-pre-wrap max-h-72 overflow-y-auto leading-relaxed bg-white dark:bg-[#141416]">
             {autoFixResult ? (
               autoFixResult.sanitized_content
             ) : (
-              <div className="text-neutral-400 italic py-6 text-center">
-                Click &ldquo;Run Smart Auto-Fix&rdquo; above to generate the reviewable sanitized version.
-              </div>
+              findings.length === 0 && !blockReason ? originalContent : <div className="text-neutral-400 italic py-6 text-center">{blockReason ? 'Export remains locked for this scan.' : 'Run Smart Auto-Fix to generate a masked preview.'}</div>
             )}
           </div>
         </div>
       </div>
 
+      {autoFixResult?.export_note && <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">{autoFixResult.export_note}</p>}
       {/* Explicit Legal & Anonymization Note */}
       <div className="mt-4 p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-700/40 text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-2.5">
         <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -171,6 +171,7 @@ export const BeforeAfterViewer: React.FC<BeforeAfterViewerProps> = ({
           <input
             type="checkbox"
             checked={userConfirmed}
+            disabled={!canProceed}
             onChange={(e) => onToggleUserConfirmed(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#ca0019] focus:ring-[#ca0019] accent-[#ca0019] cursor-pointer"
           />

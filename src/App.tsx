@@ -735,6 +735,8 @@ export default function App() {
                     />
 
                     <ExportControls
+                      key={scanResult.session_id}
+                      isIncomplete={scanResult.is_incomplete}
                       sessionId={scanResult.session_id}
                       sourceType={scanResult.source_type}
                       policyDecision={scanResult.policy_decision}
