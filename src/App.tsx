@@ -541,9 +541,11 @@ export default function App() {
                   </div>
 
                   <div className="mb-5 rounded-xl border border-violet-200 dark:border-violet-900 bg-violet-50/60 dark:bg-violet-950/20 p-4 text-xs text-violet-900 dark:text-violet-200">
-                    <p className="font-bold">Context ML active · Runs on your device</p>
-                    <p className="mt-1 leading-relaxed">Trained context model + policy rules detect names, addresses, credentials and private health or financial details. English and Hinglish prototype; review results before sharing.</p>
+                    <p className="font-bold">Context ML v1.1 active · Runs on your device</p>
+                    <p className="mt-1 leading-relaxed">Context ML + policy rules inspect names, addresses, credentials and private health or financial details. Hidden Unicode and disguised email checks are included. English and Hinglish prototype; review before sharing.</p>
                     <button className="mt-2 font-bold underline cursor-pointer" onClick={() => { invalidateScan(); setInputMode('prompt'); setPromptText('My name is Kavya Sinha. I live at 62 Cedar Road Jaipur. My password is RiverFox#92. I was diagnosed with diabetes. Explain how sorting works.'); }}>Try context detection</button>
+                    <button className="ml-4 mt-2 font-bold underline cursor-pointer" onClick={() => { invalidateScan(); setInputMode('prompt'); setPromptText('Email: demo [at] example [dot] com\n{"password":"Snow!Wolf#82"}\nUPI ID: user123@oksbi'); }}>Try disguised data</button>
+                    <button className="ml-4 mt-2 font-bold underline cursor-pointer" onClick={() => { invalidateScan(); setInputMode('prompt'); setPromptText('Can you explain why asthma happens? Explain how passwords work.'); }}>Try a safe question</button>
                   </div>
 
                   {/* Error Message */}

@@ -11,7 +11,7 @@
     "lint": "tsc --noEmit",
     "start": "tsx server.ts",
     "test:export": "node --import tsx tests/export.test.mts",
-    "test:model": "node --import tsx --test tests/model.test.mts"
+    "test:model": "node --import tsx --test tests/model.test.mts tests/smart-detection.test.mts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

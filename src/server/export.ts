@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import { getEngine, Sanitizer } from './engine';
-import { parseAndScanXlsx, sanitizeXlsx } from './parsers';
+import { parseAndScanXlsx, parseAndScanCsv, sanitizeXlsx } from './parsers';
 
 /** Validate the actual release payload against today's policy, not just an old UI badge. */
 export async function prepareExport(data: any, format: string) {
@@ -31,7 +31,9 @@ export async function prepareExport(data: any, format: string) {
       body = sanitized?.sanitized_content ?? data.raw_text ?? '';
       contentType = 'text/plain; charset=utf-8';
     }
-    const findings = engine.scanTextSegment(String(body), 'prompt', 'Export verification', {});
+    const findings = data.source_type === 'csv'
+      ? parseAndScanCsv(Buffer.from(String(body)), !sanitized && format !== 'csv' && data.csv_delimiter === '\t' ? 'check.tsv' : 'check.csv', engine).findings
+      : engine.scanTextSegment(String(body), 'prompt', 'Export verification', {});
     if (findings.length || engine.evaluatePolicyAndScore(findings).policy_decision !== 'allow') throw new Error('The current policy found sensitive content in this export. Scan again.');
   }
   return {body, contentType, filename: `sanitized_export.${format}`};

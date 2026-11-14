@@ -1,6 +1,6 @@
 # PromptShield AI — Browser Edition
 
-A private, on-device scanner for AI prompts and documents. Built with React, Vite, and a deterministic rules engine.
+A private, on-device scanner for AI prompts and documents. Built with React, Vite, and a hybrid rules and local context ML engine.
 
 ## Run
 
@@ -33,6 +33,18 @@ The existing Node/Python server files are retained for reference; this edition u
 
 ## Local context model
 
-The scanner now combines existing policy rules with PromptShield Context v1, a multinomial logistic regression token classifier trained on 10,248 synthetic tokens. It runs entirely in the browser without an API key or external inference. Names, addresses, secrets, health, personal finance and private plans use the same policy, location, masking and export checks as rule findings. Each model finding includes a confidence score.
+The scanner now combines existing policy rules with PromptShield Context v1.1, a multinomial logistic regression token classifier trained on 115,307 synthetic tokens. It runs entirely in the browser without an API key or external inference. Names, addresses, secrets, health, personal finance and private plans use the same policy, location, masking and export checks as rule findings. Each model finding includes a confidence score.
 
 See `src/model/MODEL_CARD.md` for scope and evaluation limits. Reproduce weights with `python scripts/train_detector.py` (numpy and scikit-learn 1.8). Run `npm run test:model` and `npm run test:export`. No user prompts are used for training. This is a prototype classifier, not an LLM or a guarantee of complete redaction.
+
+### Smarter detection in v1.1
+
+- Unicode NFKC and zero-width normalization with original character coordinates.
+- JSON/config and Hinglish secret values, full PEM private keys, disguised `[at]`/`[dot]` email addresses.
+- Context-labelled compact Aadhaar, bank account numbers and UPI handles (pattern matches, not identity validation).
+- More varied training contexts and educational/nonliteral negative examples. Evaluation separates both templates and values; metrics remain synthetic and are not real-world accuracy.
+- 23 behavioral regression tests, including false positives, source offsets, policy disabling, masking and re-scan.
+
+The browser edition is maintained on the `smart-local-detector` GitHub branch. Existing server/backend files remain reference code; browser checks cannot establish server-side security for public multi-user deployments.
+
+GitHub Actions runs TypeScript, detector/export regressions and a production build on pushes to `smart-local-detector`.

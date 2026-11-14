@@ -1,3 +1,5 @@
+import { normalizeForDetection } from '../model/normalize';
+import { contextualMatches } from '../model/context-rules';
 import { detectContext } from '../model/detector';
 /**
  * PromptShield AI — Core Detection Engine, Policy Store, Risk Scoring & Sanitizer
@@ -162,7 +164,6 @@ const DEFAULT_RULES: PolicyRule[] = [
         '\\beyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b',
         '-----BEGIN [A-Z ]*PRIVATE KEY-----',
         '(?:postgres|postgresql|mysql|mongodb(?:\\+srv)?|redis):\\/\\/[^:\\s]+:[^@\\s]+@[^\\s"\'<>]+',
-        '\\b(?:password|passwd|pwd|api_key|apikey|secret_key|access_token|auth_token|client_secret)\\s*[:=]\\s*[\'"]?[^\\s\'",;}{]{4,}[\'"]?',
       ]
     }
   },
@@ -205,6 +206,9 @@ export class PolicyStore {
       const saved = JSON.parse(localStorage.getItem('promptshield.preferences.v1') || 'null');
       if (saved && Array.isArray(saved.rules) && saved.rules.every((r: any) => typeof r.id === 'string' && r.config && typeof r.enabled === 'boolean')) {
         this.rules = DEFAULT_RULES.map(def => saved.rules.find((r: PolicyRule) => r.id === def.id) ?? JSON.parse(JSON.stringify(def)));
+        // Old built-in assignment regex masked the label too. Preserve custom patterns while retiring that default.
+        const secrets = this.rules.find(r => r.id === 'rule_api_key');
+        if (secrets?.config.patterns) secrets.config.patterns = secrets.config.patterns.filter(p => !p.startsWith('\\b(?:password|passwd|pwd|api_key|apikey|secret_key|access_token|auth_token|client_secret)'));
         this.settings = { ...DEFAULT_SETTINGS, ...saved.settings };
       }
       const logs = JSON.parse(localStorage.getItem('promptshield.audit.v1') || '[]');
@@ -341,14 +345,41 @@ export class DetectionEngine {
 
   scanTextSegment(text: string, locationType: string, locationLabel: string, locationMeta: Record<string, any>): Finding[] {
     if (!text) return [];
+    if (/^[\x00-\x7F]*$/.test(text)) return this.scanNormalizedText(text, locationType, locationLabel, locationMeta);
+    const normalized = normalizeForDetection(text);
+    return this.scanNormalizedText(normalized.text, locationType, locationLabel, locationMeta).map(f => {
+      const start = normalized.starts[f.location_meta.start];
+      const end = normalized.ends[f.location_meta.end - 1];
+      const originalValue = text.slice(start, end);
+      return { ...f, matched_value: originalValue,
+        location_meta: { ...f.location_meta, start, end },
+        explanation: f.explanation + (originalValue !== f.matched_value ? ' Unicode normalization exposed an obfuscated value.' : ''),
+      };
+    });
+  }
+
+  private scanNormalizedText(text: string, locationType: string, locationLabel: string, locationMeta: Record<string, any>): Finding[] {
+    if (!text) return [];
     const findings: Finding[] = [];
     const sevRank: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
 
     for (const rule of this.compiled) {
+      for (const span of contextualMatches(text, rule.category)) {
+        findings.push({
+          id: `f_${++findingSeq}_context_${span.start}`, rule_id: rule.id, rule_name: rule.name,
+          category: rule.category, severity: rule.severity, policy_action: rule.policy_action,
+          weight: rule.weight, location: locationLabel, location_type: locationType,
+          location_meta: { ...locationMeta, start: span.start, end: span.end },
+          matched_value: span.value, detection_source: 'rule',
+          explanation: `Context rule: ${rule.name}. Only the detected value is selected.`,
+          is_blocking: rule.policy_action === 'block',
+        });
+      }
       for (const regex of rule.regexes) {
         regex.lastIndex = 0;
         let m: RegExpExecArray | null;
         while ((m = regex.exec(text)) !== null) {
+          if (!m[0].length) { regex.lastIndex++; continue; }
           const val = m[0];
           if (rule.category === 'phone') {
             if (isDateOrIp(val)) continue;
@@ -396,7 +427,7 @@ export class DetectionEngine {
     }
 
     // Deduplicate overlapping spans (keep higher severity)
-    findings.sort((a, b) => (a.location_meta.start - b.location_meta.start) || (sevRank[b.severity] || 0) - (sevRank[a.severity] || 0));
+    findings.sort((a, b) => (sevRank[b.severity] || 0) - (sevRank[a.severity] || 0) || (b.location_meta.end - b.location_meta.start) - (a.location_meta.end - a.location_meta.start));
     const deduped: Finding[] = [];
     for (const f of findings) {
       const overlap = deduped.some(d =>
@@ -405,7 +436,7 @@ export class DetectionEngine {
       );
       if (!overlap) deduped.push(f);
     }
-    return deduped;
+    return deduped.sort((a,b) => a.location_meta.start - b.location_meta.start);
   }
 
   evaluatePolicyAndScore(findings: Finding[], isIncomplete = false): PolicyEval {
@@ -526,7 +557,7 @@ export class Sanitizer {
     const sanRows = rows.map(r => r.map(c => this.sanitizeText(c, map)));
     const origText = rows.map(r => r.map(formatCell).join(delimiter)).join('\n');
     const sanText = sanRows.map(r => r.map(formatCell).join(delimiter)).join('\n');
-    const rescan = engine.scanTextSegment(sanText, 'csv', 'Sanitized CSV', {});
+    const rescan = sanRows.flatMap((row,ri) => row.flatMap((cell,ci) => engine.scanTextSegment(cell, 'csv', `Sanitized Row ${ri+1}, Col ${ci+1}`, {row:ri+1,col:ci+1})));
     const reval = engine.evaluatePolicyAndScore(rescan);
     return {
       original_content: origText, sanitized_content: sanText, placeholder_map: map,

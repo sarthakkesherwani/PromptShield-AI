@@ -34,6 +34,9 @@ export function detectContext(text: string): ModelSpan[] {
     const category = model.classes[winner];
     const confidence = exp[winner] / sum;
     if (category === 'O' || confidence < model.threshold) continue;
+    // Dates and network addresses alone are not credentials; explicit secret context still wins.
+    if (category === 'api_key' && /^(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,3}(?:\.\d{1,3}){3})$/.test(words[i]) &&
+        !/password|passphrase|secret|token|credential|login code/i.test(words.slice(Math.max(0,i-4),i).join(' '))) continue;
     const end = start + words[i].length;
     const prev = result.at(-1);
     if (prev && prev.category === category && /^\s*$/.test(text.slice(prev.end, start))) {
