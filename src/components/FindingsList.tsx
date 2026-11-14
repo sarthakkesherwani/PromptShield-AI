@@ -51,7 +51,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
         </div>
         <h3 className="text-base font-bold text-gray-900 dark:text-white">No Sensitive Findings Detected</h3>
         <p className="text-sm text-gray-600 dark:text-neutral-400 max-w-md mx-auto mt-1">
-          The document or prompt text satisfies all active policy rules. No emails, phone numbers, account identifiers, API keys, or confidential phrases were matched.
+          The document or prompt text satisfies all active policy rules. No sensitive items were detected by active rules and the local model. This does not guarantee that the text is safe.
         </p>
       </div>
     );
@@ -70,7 +70,7 @@ export const FindingsList: React.FC<FindingsListProps> = ({
               </span>
             </h3>
             <p className="text-xs text-gray-600 dark:text-neutral-400 mt-0.5">
-              Rule-based matches with exact source file coordinates and severity levels.
+              Rule and trained model findings with source locations and confidence.
             </p>
           </div>
         </div>
@@ -123,6 +123,11 @@ export const FindingsList: React.FC<FindingsListProps> = ({
                       <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${sevProps.classes}`}>
                         {sevProps.label}
                       </span>
+                      {finding.detection_source === 'model' && (
+                        <span title={finding.explanation} className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-violet-100 text-violet-800">
+                          Context ML · {Math.round((finding.confidence ?? 0) * 100)}%
+                        </span>
+                      )}
                       {finding.is_blocking && (
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#ca0019]/10 text-[#ca0019] border border-[#ca0019]/30 flex items-center space-x-1">
                           <Lock className="w-2.5 h-2.5" />

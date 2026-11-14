@@ -50,10 +50,10 @@ const CAPABILITY_TAGS = [
 
 const MARQUEE_CARDS = [
   { tag: 'XLSX Guard', title: 'Sheet1!B2 Cell Pinning', desc: 'Inspects spreadsheets without executing formulas.', badge: 'Structural Export' },
-  { tag: 'PDF Guard', title: 'Page-Level Text Audit', desc: 'Honest text extraction — zero fake black-box overlays.', badge: 'PyMuPDF / Parse' },
+  { tag: 'PDF Guard', title: 'PDF Text Inspection', desc: 'Inspects PDF text by page; flags uninspected images.', badge: 'Page-Level Findings' },
   { tag: 'Auto-Fix', title: '[EMAIL_1] Consistency', desc: 'Repeated sensitive values get deterministic placeholders.', badge: 'Re-Scan Verified' },
-  { tag: 'Policy Gate', title: 'Strict Block Override', desc: 'Low risk scores never override critical secret rules.', badge: 'Backend Enforced' },
-  { tag: 'Audit Trail', title: 'Zero Raw PII Saved', desc: 'Logs metadata counts only — raw prompts stay ephemeral.', badge: 'Compliance Ready' },
+  { tag: 'Policy Gate', title: 'Strict Block Override', desc: 'Low risk scores never override critical secret rules.', badge: 'Browser Enforced' },
+  { tag: 'Audit Trail', title: 'Zero Raw PII Saved', desc: 'Logs metadata counts only — raw prompts stay ephemeral.', badge: 'Saved on This Device' },
   { tag: 'CSV Guard', title: 'Row & Column Tracking', desc: 'Handles quoted fields and masks sensitive columns cleanly.', badge: 'RFC-4180 Safe' },
 ];
 
@@ -189,8 +189,20 @@ export default function App() {
     }, 60);
   };
 
+  const scanGeneration = useRef(0);
+  const invalidateScan = () => {
+    scanGeneration.current++;
+    setScanResult(null);
+    setAutoFixResult(null);
+    setUserConfirmed(false);
+    setSelectedFinding(null);
+    setScanError(null);
+    setIsScanning(false);
+  };
+
   const handleScanPrompt = async () => {
     if (!promptText.trim()) return;
+    const generation = ++scanGeneration.current;
     setIsScanning(true);
     setScanError(null);
     setScanResult(null);
@@ -211,12 +223,13 @@ export default function App() {
       }
 
       const data: ScanResult = await res.json();
+      if (generation !== scanGeneration.current) return;
       setScanResult(data);
       refreshStats();
     } catch (err: any) {
-      setScanError(err.message || 'Error occurred during prompt scan.');
+      if (generation === scanGeneration.current) setScanError(err.message || 'Could not scan this prompt. Try again.');
     } finally {
-      setIsScanning(false);
+      if (generation === scanGeneration.current) setIsScanning(false);
     }
   };
 
@@ -224,6 +237,7 @@ export default function App() {
     const file = fileToScan || selectedFile;
     if (!file) return;
 
+    const generation = ++scanGeneration.current;
     setIsScanning(true);
     setScanError(null);
     setScanResult(null);
@@ -246,17 +260,20 @@ export default function App() {
       }
 
       const data: ScanResult = await res.json();
+      if (generation !== scanGeneration.current) return;
       setScanResult(data);
       refreshStats();
     } catch (err: any) {
-      setScanError(err.message || 'Error occurred during file scan.');
+      if (generation === scanGeneration.current) setScanError(err.message || 'Could not read this file. Try another format.');
     } finally {
-      setIsScanning(false);
+      if (generation === scanGeneration.current) setIsScanning(false);
     }
   };
 
   const handleRunAutoFix = async () => {
     if (!scanResult) return;
+    const generation = scanGeneration.current;
+    setUserConfirmed(false);
     setIsAutoFixing(true);
 
     try {
@@ -272,10 +289,11 @@ export default function App() {
       }
 
       const data: AutoFixResult = await res.json();
+      if (generation !== scanGeneration.current) return;
       setAutoFixResult(data);
       refreshStats();
     } catch (err: any) {
-      alert(err.message || 'Error executing auto-fix.');
+      if (generation === scanGeneration.current) setScanError(err.message || 'Could not mask this content. Try scanning again.');
     } finally {
       setIsAutoFixing(false);
     }
@@ -310,6 +328,7 @@ export default function App() {
 
   const handleLoadPromptSample = (text: string) => {
     setCurrentTab('scanner');
+    invalidateScan();
     setInputMode('prompt');
     setPromptText(text);
     setTimeout(() => {
@@ -333,7 +352,7 @@ export default function App() {
 
       {/* Main Content Surface with layout-bottom-clip over Fixed Footer */}
       <div
-        className="relative z-10 bg-white dark:bg-[#0a0a0a] layout-bottom-clip overflow-x-clip min-h-screen"
+        className="relative z-10 bg-white dark:bg-[#0a0a0a] mobile-content layout-bottom-clip overflow-x-clip min-h-screen"
         style={{
           marginBottom: `${footerHeight}px`,
           filter: 'drop-shadow(0 20px 50px rgba(0,0,0,0.1))',
@@ -360,7 +379,7 @@ export default function App() {
                 </div>
 
                 {/* Centered Hero Headline + Brushstroke Highlight */}
-                <div className="text-center px-6 pt-10 pb-8">
+                <div className="hero-intro text-center px-5 sm:px-6 pt-7 sm:pt-10 pb-8">
                   <button
                     onClick={() => setIsDemoModalOpen(true)}
                     className="text-sm font-medium px-3.5 py-1 border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-full w-max mx-auto text-[#ca0019] mb-4 inline-block hover:border-[#ca0019] transition-colors cursor-pointer"
@@ -368,7 +387,7 @@ export default function App() {
                     Pre-Upload AI Privacy Guard ✨
                   </button>
 
-                  <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white leading-[1.4]">
+                  <h1 className="text-[30px] sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white leading-[1.3] sm:leading-[1.4]">
                     Inspect Prompts &amp; Files Before <br className="hidden sm:inline" />
                     <span className="brush-bg text-white [--brush-color:#ca0019] inline-block mt-2">
                       Sending to AI Models.
@@ -376,7 +395,7 @@ export default function App() {
                   </h1>
 
                   <p className="text-gray-600 dark:text-neutral-400 my-5 max-w-2xl mx-auto text-base leading-relaxed">
-                    Experience zero-leak AI workflows with PromptShield AI — deep file inspection, deterministic numbered placeholders, and strict compliance enforcement.
+                    Find sensitive data before you share it with AI. Scan, mask, and review your prompts and documents.
                   </p>
 
                   <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
@@ -402,10 +421,11 @@ export default function App() {
 
               {/* Smooth Horizontal Marquee Feature Strip */}
               <div className="w-full overflow-hidden py-4 relative z-10 bg-transparent">
-                <div className="animate-marquee flex gap-4">
+                <div className="animate-marquee flex gap-0">
                   {[...MARQUEE_CARDS, ...MARQUEE_CARDS].map((card, idx) => (
                     <div
                       key={idx}
+                      aria-hidden={idx >= MARQUEE_CARDS.length ? true : undefined}
                       className="min-w-[280px] max-w-[290px] mx-2 p-5 rounded-xl shadow-md bg-white dark:bg-[#161616] border border-slate-200/80 dark:border-white/[0.08] flex flex-col justify-between relative overflow-hidden"
                     >
                       <div className="absolute top-0 right-0 w-10 h-10 bg-[#ca0019]/5 rounded-bl-2xl" />
@@ -484,12 +504,19 @@ export default function App() {
                   </div>
                 </div>
 
+                <ol className="scan-steps" aria-label="Privacy review workflow">
+                  {['Add content', 'Inspect & mask', 'Review & export'].map((label, i) => {
+                    const stage = userConfirmed ? 2 : scanResult ? 1 : 0;
+                    return <li key={label} aria-current={i === stage ? 'step' : undefined} className={i <= stage ? 'is-current' : ''}><span>{i + 1}</span><div>{label}</div></li>;
+                  })}
+                </ol>
+                <p className="mb-5 text-sm text-neutral-500 dark:text-neutral-400">Your content stays on this device. Detection combines rules and context ML; always review the result.</p>
                 {/* Main Input Card */}
-                <div className="bg-white dark:bg-[#161616] rounded-[20px] border border-[#e2e8f0] dark:border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] p-6 sm:p-8 mb-8">
+                <div className="bg-white dark:bg-[#161616] rounded-[20px] border border-[#e2e8f0] dark:border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] p-4 sm:p-8 mb-8">
                   {/* Tabs: Prompt vs File */}
                   <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-neutral-800 pb-4 mb-6">
                     <button
-                      onClick={() => setInputMode('prompt')}
+                      onClick={() => { invalidateScan(); setInputMode('prompt'); }}
                       className={`flex items-center space-x-2 px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
                         inputMode === 'prompt'
                           ? 'bg-[#ca0019] text-white shadow-sm'
@@ -497,11 +524,11 @@ export default function App() {
                       }`}
                     >
                       <FileText className="w-4 h-4" />
-                      <span>Prompt Text Scanner</span>
+                      <span><span className="sm:hidden">Prompt Scanner</span><span className="hidden sm:inline">Prompt Text Scanner</span></span>
                     </button>
 
                     <button
-                      onClick={() => setInputMode('file')}
+                      onClick={() => { invalidateScan(); setInputMode('file'); }}
                       className={`flex items-center space-x-2 px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
                         inputMode === 'file'
                           ? 'bg-[#ca0019] text-white shadow-sm'
@@ -509,13 +536,19 @@ export default function App() {
                       }`}
                     >
                       <UploadCloud className="w-4 h-4" />
-                      <span>DeepFile Guard (PDF / DOCX / XLSX / CSV / JSON / TXT)</span>
+                      <span>DeepFile Guard<span className="hidden sm:inline"> (PDF / DOCX / XLSX / CSV / JSON / TXT)</span></span>
                     </button>
+                  </div>
+
+                  <div className="mb-5 rounded-xl border border-violet-200 dark:border-violet-900 bg-violet-50/60 dark:bg-violet-950/20 p-4 text-xs text-violet-900 dark:text-violet-200">
+                    <p className="font-bold">Context ML active · Runs on your device</p>
+                    <p className="mt-1 leading-relaxed">Trained context model + policy rules detect names, addresses, credentials and private health or financial details. English and Hinglish prototype; review results before sharing.</p>
+                    <button className="mt-2 font-bold underline cursor-pointer" onClick={() => { invalidateScan(); setInputMode('prompt'); setPromptText('My name is Kavya Sinha. I live at 62 Cedar Road Jaipur. My password is RiverFox#92. I was diagnosed with diabetes. Explain how sorting works.'); }}>Try context detection</button>
                   </div>
 
                   {/* Error Message */}
                   {scanError && (
-                    <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-500/30 text-red-900 dark:text-red-200 text-xs flex items-center space-x-3">
+                    <div role="alert" className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-500/30 text-red-900 dark:text-red-200 text-xs flex items-center space-x-3">
                       <AlertTriangle className="w-5 h-5 text-[#ca0019] shrink-0" />
                       <span className="font-semibold">{scanError}</span>
                     </div>
@@ -527,7 +560,8 @@ export default function App() {
                       <div className="relative">
                         <textarea
                           value={promptText}
-                          onChange={(e) => setPromptText(e.target.value)}
+                          aria-label="Prompt to inspect"
+                          onChange={(e) => { invalidateScan(); setPromptText(e.target.value); }}
                           placeholder="Paste your AI prompt, system instructions, or confidential query here to scan for sensitive information..."
                           rows={6}
                           className="w-full rounded-2xl border border-slate-200 dark:border-neutral-800 p-4 font-mono text-xs text-slate-800 dark:text-neutral-200 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#ca0019] focus:border-[#ca0019] transition-all bg-slate-50/50 dark:bg-neutral-900"
@@ -539,7 +573,7 @@ export default function App() {
 
                       <div className="mt-4 flex items-center justify-between">
                         <button
-                          onClick={() => setPromptText('')}
+                          onClick={() => { invalidateScan(); setPromptText(''); }}
                           disabled={!promptText}
                           className="text-xs font-semibold text-neutral-400 hover:text-[#ca0019] disabled:opacity-40 cursor-pointer"
                         >
@@ -565,6 +599,10 @@ export default function App() {
                       <div
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={handleFileDrop}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Choose a document to scan"
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
                         onClick={() => fileInputRef.current?.click()}
                         className="border-2 border-dashed border-slate-300 dark:border-neutral-700 hover:border-[#ca0019] bg-slate-50/60 dark:bg-neutral-900/50 hover:bg-red-50/20 dark:hover:bg-red-950/10 rounded-2xl p-8 text-center cursor-pointer transition-all"
                       >
@@ -698,16 +736,19 @@ export default function App() {
                       onRunAutoFix={handleRunAutoFix}
                       userConfirmed={userConfirmed}
                       onToggleUserConfirmed={setUserConfirmed}
-                      canProceed={autoFixResult ? autoFixResult.can_proceed : scanResult.policy_decision === 'allow'}
+                      canProceed={!scanResult.is_incomplete && scanResult.policy_decision !== 'block' && (autoFixResult ? Boolean(autoFixResult.can_proceed) : scanResult.policy_decision === 'allow')}
+                      blockReason={scanResult.is_incomplete ? 'Some content could not be inspected. Try a readable text file or review the original manually.' : scanResult.policy_decision === 'block' ? 'This scan is blocked by your policy. Remove prohibited content and scan again.' : undefined}
                     />
 
                     <ExportControls
+                      key={scanResult.session_id}
+                      isIncomplete={scanResult.is_incomplete}
                       sessionId={scanResult.session_id}
                       sourceType={scanResult.source_type}
                       policyDecision={scanResult.policy_decision}
                       reScanPolicyDecision={autoFixResult?.re_scan_policy_decision}
                       userConfirmed={userConfirmed}
-                      canExport={Boolean(autoFixResult || scanResult.findings.length === 0)}
+                      canExport={!scanResult.is_incomplete && scanResult.policy_decision !== 'block' && Boolean(autoFixResult?.can_proceed || scanResult.findings.length === 0)}
                     />
                   </div>
                 )}
@@ -778,7 +819,7 @@ export default function App() {
                       <div className="mb-2 sm:mb-3 w-full">
                         <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white inline-flex items-center">
                           <span>{stat.value}</span>
-                          <span className="text-base sm:text-lg font-bold text-[#ca0019] ml-1 animate-pulse">
+                          <span className="text-base sm:text-lg font-bold text-[#ca0019] ml-1">
                             +
                           </span>
                         </span>
@@ -837,7 +878,7 @@ export default function App() {
                         Exact Cell, Row &amp; Page Pinning
                       </h5>
                       <p className="text-sm text-gray-600 dark:text-neutral-400 leading-relaxed">
-                        Pins Excel matches down to exact worksheet coordinates (e.g. <code>Sheet1!B2</code>), tracks CSV row/column pairs, extracts PDF page numbers honestly, and flags unreadable binary files instead of claiming Safe.
+                        Pins Excel matches down to exact worksheet coordinates (e.g. <code>Sheet1!B2</code>), tracks CSV row/column pairs, inspects readable PDF text by page, and flags unreadable binary files instead of claiming Safe.
                       </p>
                     </div>
                   </div>
@@ -864,10 +905,10 @@ export default function App() {
                         <Lock className="w-8 h-8" />
                       </div>
                       <h3 className="font-semibold capitalize mb-2 text-xl">
-                        Backend Policy Gate
+                        Browser Policy Gate
                       </h3>
                       <p className="text-sm text-white/90 leading-relaxed">
-                        Blocked API keys and confidential keywords are enforced directly on the server — low risk scores or Auto-Fix never silently override a strict block rule.
+                        Blocked API keys and confidential keywords are enforced locally in this browser — low risk scores or Auto-Fix never silently override a strict block rule.
                       </p>
                     </div>
                   </div>
@@ -940,7 +981,7 @@ export default function App() {
       </div>
 
       {/* Fixed Sticky-Reveal Footer (Exact layout-bottom-clip reveal pattern from G6) */}
-      <div ref={footerRef} className="fixed bottom-0 left-0 w-full z-0">
+      <div ref={footerRef} className="site-footer fixed bottom-0 left-0 w-full z-0">
         <Footer
           onSelectTab={setCurrentTab}
           onOpenDemos={() => setIsDemoModalOpen(true)}

@@ -80,7 +80,7 @@ export const AuditHistory: React.FC = () => {
         subtitle="Zero-Exposure"
         chipLabel="Audit Metadata"
         title="Audit History → Compliance Trail ✦"
-        description="Tamper-evident record of scan decisions, risk scores, and sanitization actions without storing raw sensitive content."
+        description="Browser-saved scan decisions, risk scores, and sanitization actions. Clear history anytime on this device."
         icon={<History className="w-3.5 h-3.5 text-white" />}
       />
 

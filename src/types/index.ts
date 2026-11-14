@@ -2,7 +2,7 @@ export interface Finding {
   id: string;
   rule_id: string;
   rule_name: string;
-  category: 'email' | 'phone' | 'account_id' | 'gov_id' | 'credit_card' | 'api_key' | 'confidential_keyword' | 'custom_regex';
+  category: 'person_name' | 'address' | 'health_info' | 'financial_info' | 'email' | 'phone' | 'account_id' | 'gov_id' | 'credit_card' | 'api_key' | 'confidential_keyword' | 'custom_regex';
   severity: 'low' | 'medium' | 'high' | 'critical';
   policy_action: 'warn' | 'block';
   weight: number;
@@ -11,6 +11,8 @@ export interface Finding {
   location_meta: Record<string, any>;
   matched_value: string;
   placeholder?: string;
+  detection_source?: 'rule' | 'model';
+  confidence?: number;
   explanation: string;
   is_blocking?: boolean;
 }

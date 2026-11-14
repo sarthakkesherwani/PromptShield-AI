@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 /**
  * PromptShield AI — File Parsers (PDF, XLSX, CSV, TXT/Prompt)
  * Pure TypeScript — no Python dependency.
@@ -26,7 +27,7 @@ export function parseAndScanPrompt(text: string, engine: DetectionEngine): ScanR
   return {
     source_type: 'prompt', safe_source_label: 'Text Prompt', raw_text: text,
     findings, is_incomplete: false,
-    coverage_notes: '100% prompt text inspected via rule engine.',
+    coverage_notes: 'Full prompt text inspected with rules and local context ML. Detection is probabilistic; review before sharing.',
     unsupported_elements: [], ...ev,
   };
 }
@@ -189,7 +190,7 @@ function extractNoteText(note: any): string {
 
 export async function parseAndScanXlsx(buf: Buffer, filename: string, engine: DetectionEngine): Promise<ScanResult> {
   let ExcelJS: any;
-  try { ExcelJS = (await import('exceljs')).default; } catch {
+  try { ExcelJS = (await import('exceljs/dist/exceljs.min.js')).default; } catch {
     throw new Error('ExcelJS library is not available. Cannot parse XLSX files.');
   }
 
@@ -207,6 +208,7 @@ export async function parseAndScanXlsx(buf: Buffer, filename: string, engine: De
 
   wb.eachSheet((ws: any) => {
     const sheetName: string = ws.name;
+    findings.push(...engine.scanTextSegment(sheetName, 'xlsx', 'Worksheet name', {sheet: sheetName}));
     const rows: any[] = [];
     previewLines.push(`[${sheetName}]`);
 
@@ -276,54 +278,38 @@ export async function sanitizeXlsx(
 ): Promise<{ buffer: Buffer; meta: import('./engine.ts').AutoFixResult }> {
   const { Sanitizer } = await import('./engine.ts');
   let ExcelJS: any;
-  try { ExcelJS = (await import('exceljs')).default; } catch {
+  try { ExcelJS = (await import('exceljs/dist/exceljs.min.js')).default; } catch {
     throw new Error('ExcelJS not available');
   }
 
   const map = Sanitizer.generatePlaceholderMap(findings);
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buf);
-
-  const origLines: string[] = [];
-  const sanLines: string[] = [];
-
-  wb.eachSheet((ws: any) => {
-    origLines.push(`[${ws.name}]`);
-    sanLines.push(`[${ws.name}]`);
-    ws.eachRow((row: any) => {
-      const oRow: string[] = [];
-      const sRow: string[] = [];
-      row.eachCell({ includeEmpty: true }, (cell: any) => {
-        const val = cell.text || (cell.value != null ? String(cell.value) : '');
-        oRow.push(val);
-        if (!val.startsWith('=') && !val.startsWith('+') && !val.startsWith('-') && !val.startsWith('@')) {
-          const newVal = Sanitizer.sanitizeText(val, map);
-          cell.value = newVal;
-          sRow.push(newVal);
-        } else {
-          sRow.push(val);
-        }
+  const source = new ExcelJS.Workbook();
+  await source.xlsx.load(buf);
+  const output = new ExcelJS.Workbook();
+  // Rebuild from inspected cell values only. Do not copy formulas, links, or document metadata.
+  source.eachSheet((ws: any) => {
+    const safeSheetName = Sanitizer.sanitizeText(ws.name, map).replace(/[\[\]:*?\/\\]/g, '_').slice(0, 31);
+    const sheet = output.addWorksheet(safeSheetName || `Sheet${output.worksheets.length + 1}`);
+    ws.eachRow((row: any, ri: number) => {
+      row.eachCell({ includeEmpty: true }, (cell: any, ci: number) => {
+        const { text } = extractExcelCellText(cell);
+        const value = Sanitizer.sanitizeText(text, map);
+        const target = sheet.getCell(ri, ci);
+        target.value = typeof cell.value === 'number' && value === text ? cell.value : value;
+        const note = extractNoteText(cell.note);
+        if (note) target.note = Sanitizer.sanitizeText(note, map);
       });
-      origLines.push(oRow.join('\t'));
-      sanLines.push(sRow.join('\t'));
     });
   });
-
-  const outBuf = Buffer.from(await wb.xlsx.writeBuffer());
-  const sanText = sanLines.join('\n');
-  const rescan = engine.scanTextSegment(sanText, 'xlsx', 'Sanitized XLSX', {});
-  const reval = engine.evaluatePolicyAndScore(rescan);
-
-  return {
-    buffer: outBuf,
-    meta: {
-      original_content: origLines.join('\n'), sanitized_content: sanText,
-      placeholder_map: map, re_scan_findings: rescan,
-      re_scan_risk_score: reval.risk_score,
-      re_scan_policy_decision: reval.policy_decision,
-      re_scan_summary: reval.decision_summary,
-    }
-  };
+  const outBuf = Buffer.from(await output.xlsx.writeBuffer());
+  const checked = await parseAndScanXlsx(outBuf, 'sanitized_export.xlsx', engine);
+  return { buffer: outBuf, meta: {
+    original_content: (await parseAndScanXlsx(buf, 'source.xlsx', engine)).raw_text,
+    sanitized_content: checked.raw_text, placeholder_map: map,
+    re_scan_findings: checked.findings, re_scan_risk_score: checked.risk_score,
+    re_scan_policy_decision: checked.policy_decision, re_scan_summary: checked.decision_summary,
+    export_note: 'Value-only workbook. Cell positions and sheet names are retained; formulas, links, styling, and original document metadata are not copied.',
+  }};
 }
 
 // ─── PDF Parser (pdf-parse v2 PDFParse API) ──────────────────────────────────
@@ -332,7 +318,7 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
   const safeName = filename.replace(/^.*[\\/]/, '');
   let PDFParseCtor: any;
   try {
-    const mod: any = await import('pdf-parse');
+    const mod: any = await import('./pdf-browser');
     PDFParseCtor = mod.PDFParse || mod.default?.PDFParse || mod.default;
   } catch {
     return {
@@ -342,7 +328,7 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
       findings: [],
       is_incomplete: true,
       coverage_notes: 'PDF parsing library not available. File cannot be verified as safe.',
-      unsupported_elements: ['pdf-parse library not installed. Install it with: npm install pdf-parse'],
+      unsupported_elements: ['PDF inspection is unavailable in this browser edition. Use TXT, CSV, XLSX or DOCX instead.'],
       risk_score: 50,
       policy_decision: 'warn',
       decision_summary: 'Warning: PDF could not be parsed. Incomplete scan.',
@@ -378,7 +364,7 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
         }
       }
     } catch {
-      // ignore non-critical image metadata check failure
+      throw new Error('PDF image coverage could not be verified');
     }
 
     // Check document metadata fields (Author, Subject, Title, Keywords)
@@ -407,6 +393,7 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
       }
     }
 
+    const emptyPageCount = pages.filter(p => !p.text.trim()).length;
     const totalText = pages.map((p) => p.text).join('\n').trim();
     if (!totalText) {
       return {
@@ -441,7 +428,8 @@ export async function parseAndScanPdf(buf: Buffer, filename: string, engine: Det
     }
 
     const unsupported: string[] = [];
-    let isIncomplete = false;
+    let isIncomplete = emptyPageCount > 0;
+    if (emptyPageCount) unsupported.push(`${emptyPageCount} page(s) have no readable text; review them manually.`);
     if (embeddedImagesCount > 0) {
       isIncomplete = true;
       unsupported.push(

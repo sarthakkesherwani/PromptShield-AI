@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Menu, X, FileCheck, History, Sliders, Sparkles, ChevronRight } from 'lucide-react';
 
 interface HeaderProps {
@@ -24,6 +24,13 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    document.addEventListener('keydown', onEscape);
+    return () => document.removeEventListener('keydown', onEscape);
+  }, [drawerOpen]);
+
   const navItems = [
     { id: 'scanner' as const, label: 'SCANNER', mobileLabel: 'Scanner Workspace', icon: <FileCheck className="w-4 h-4" /> },
     { id: 'audit' as const, label: 'AUDIT LOGS', mobileLabel: 'Audit History', icon: <History className="w-4 h-4" /> },
@@ -42,19 +49,20 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-start">
           <button
             onClick={() => handleNav('scanner')}
-            className="group flex items-center gap-2.5 text-left cursor-pointer focus:outline-none"
+            aria-label="PromptShield AI Privacy Guard — Scanner home"
+            className="group inline-flex items-center gap-3 rounded-2xl text-left cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500"
           >
-            <div className="w-9 h-9 rounded-xl bg-[#ca0019] flex items-center justify-center shadow-sm transition-transform duration-300 group-hover:scale-105">
-              <Shield className="w-5 h-5 text-white stroke-[2.2]" />
-            </div>
-            <div className="leading-tight">
-              <div className="text-lg font-bold tracking-tight text-slate-900 dark:text-white transition-colors">
-                <span className="text-[#ca0019]">Prompt</span>Shield
-              </div>
-              <div className="text-[10px] font-semibold tracking-widest uppercase text-neutral-500 dark:text-neutral-400">
-                AI Privacy Guard
-              </div>
-            </div>
+            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] border border-red-400/30 bg-gradient-to-br from-[#f12542] via-[#d50024] to-[#940019] shadow-[0_5px_16px_-5px_rgba(202,0,25,0.6),inset_0_1px_0_rgba(255,255,255,0.28)] transition-transform duration-200 group-hover:-translate-y-0.5">
+              <Shield aria-hidden="true" className="h-6 w-6 text-white stroke-[1.8]" />
+              <span className="absolute bottom-[14px] h-1.5 w-1.5 rounded-full bg-white/95" aria-hidden="true" />
+            </span>
+            <span className="flex flex-col gap-1">
+              <span className="flex items-center gap-1.5 whitespace-nowrap text-[21px] font-semibold leading-none tracking-[-0.055em] text-neutral-950 dark:text-white">
+                <span>Prompt<span className="text-[#ca0019] dark:text-[#ff4d65]">Shield</span></span>
+                <span className="rounded border border-red-200 bg-red-50 px-1 py-0.5 text-[9px] font-bold leading-none tracking-[0.04em] text-[#b60020] dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-300">AI</span>
+              </span>
+              <span className="text-[9px] font-semibold leading-none tracking-[0.22em] text-neutral-500 dark:text-neutral-400">PRIVACY GUARD</span>
+            </span>
           </button>
         </div>
 
@@ -130,7 +138,9 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => setDrawerOpen(!drawerOpen)}
             className="p-2.5 rounded-xl hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80 transition-all duration-300 cursor-pointer border border-transparent hover:border-neutral-200 dark:hover:border-neutral-700"
-            aria-label="Open Navigation Menu"
+            aria-label={drawerOpen ? "Close Navigation Menu" : "Open Navigation Menu"}
+            aria-expanded={drawerOpen}
+            aria-controls="site-navigation"
           >
             {drawerOpen ? (
               <X className="w-5 h-5 text-black dark:text-white" />
@@ -149,6 +159,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setDrawerOpen(false)}
           />
           <aside
+            id="site-navigation"
+            aria-label="Site navigation"
             className="relative z-10 m-2 sm:m-4 w-[calc(100vw-32px)] sm:w-[290px] h-[calc(100%-16px)] sm:h-[calc(100%-32px)] rounded-2xl border border-neutral-200/60 dark:border-neutral-800 shadow-2xl flex flex-col overflow-hidden animate-fadeIn"
             style={{
               background: isDarkMode ? 'rgba(30, 30, 30, 0.98)' : 'rgba(255, 248, 248, 0.98)',
@@ -162,6 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <button
                 onClick={() => setDrawerOpen(false)}
+                aria-label="Close navigation"
                 className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-neutral-800 cursor-pointer transition-colors text-neutral-500 hover:text-[#ca0019]"
               >
                 <X className="w-5 h-5" />
@@ -210,7 +223,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>Open Demo Script</span>
               </button>
               <div className="text-[11px] text-center text-neutral-500 dark:text-neutral-400">
-                Zero-Exposure Rule-Based Scanner • {rulesCount} Active Rules
+                On-device Rules + Context ML • {rulesCount} Active Rules
               </div>
             </div>
           </aside>

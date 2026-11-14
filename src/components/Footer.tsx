@@ -21,7 +21,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, onOpenDemos }) => {
             </span>
           </div>
           <p className="text-sm mb-4 text-slate-700 dark:text-gray-300 leading-relaxed">
-            PromptShield AI is a rule-based pre-upload privacy guard designed to detect sensitive data, enforce policies, and generate reviewable sanitized copies without saving raw PII.
+            PromptShield AI is a hybrid rules and context ML privacy guard designed to detect sensitive data, enforce policies, and generate reviewable sanitized copies without saving raw PII.
           </p>
         </div>
 
@@ -90,7 +90,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, onOpenDemos }) => {
       {/* Bottom Bar */}
       <div className="max-w-7xl mx-auto mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
         <div className="text-sm text-center md:text-left text-slate-600 dark:text-gray-400">
-          &copy; {new Date().getFullYear()} PromptShield AI Privacy Guard. Rule-Based DLP &amp; Safe Export.
+          &copy; {new Date().getFullYear()} PromptShield AI Privacy Guard. Rules + Context ML &amp; Safe Export.
         </div>
 
         <div className="flex justify-center md:justify-end items-center space-x-3">

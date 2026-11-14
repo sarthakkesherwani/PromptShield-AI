@@ -1,3 +1,4 @@
+import { detectContext } from '../model/detector';
 /**
  * PromptShield AI — Core Detection Engine, Policy Store, Risk Scoring & Sanitizer
  * Pure TypeScript — zero Python dependency.
@@ -18,6 +19,8 @@ export interface Finding {
   location_meta: Record<string, any>;
   matched_value: string;
   placeholder?: string;
+  detection_source?: 'rule' | 'model';
+  confidence?: number;
   explanation: string;
   is_blocking?: boolean;
 }
@@ -97,6 +100,14 @@ export interface AutoFixResult {
 // ─── Default Policy Rules ───────────────────────────────────────────────────
 
 const DEFAULT_RULES: PolicyRule[] = [
+  ...[
+    ['person_name', 'Personal Names', 15], ['address', 'Home & Delivery Addresses', 25],
+    ['health_info', 'Private Health Information', 30], ['financial_info', 'Personal Financial Information', 30],
+  ].map(([category, name, weight]) => ({
+    id: `rule_${category}`, name: String(name), category: String(category),
+    description: 'Detected by the local trained context model. Review model findings before sharing.',
+    severity: 'high', policy_action: 'warn', enabled: true, weight: Number(weight), config: {},
+  })),
   {
     id: 'rule_email', name: 'Email Address Detection', category: 'email',
     description: 'Flags personal and corporate email addresses.',
@@ -187,6 +198,32 @@ export class PolicyStore {
   constructor() {
     this.rules = JSON.parse(JSON.stringify(DEFAULT_RULES));
     this.settings = { ...DEFAULT_SETTINGS };
+  }
+
+  restoreLocalState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('promptshield.preferences.v1') || 'null');
+      if (saved && Array.isArray(saved.rules) && saved.rules.every((r: any) => typeof r.id === 'string' && r.config && typeof r.enabled === 'boolean')) {
+        this.rules = DEFAULT_RULES.map(def => saved.rules.find((r: PolicyRule) => r.id === def.id) ?? JSON.parse(JSON.stringify(def)));
+        this.settings = { ...DEFAULT_SETTINGS, ...saved.settings };
+      }
+      const logs = JSON.parse(localStorage.getItem('promptshield.audit.v1') || '[]');
+      if (Array.isArray(logs)) this.auditLogs = logs.slice(0, 500).filter((l: any) => l && typeof l.id === 'string' && typeof l.risk_score === 'number');
+    } catch { /* Restricted or full storage leaves the scanner usable in memory. */ }
+  }
+
+  persistLocalState() {
+    try {
+      localStorage.setItem('promptshield.preferences.v1', JSON.stringify({ rules: this.rules, settings: this.settings }));
+      const logs = this.auditLogs.map(l => ({
+        id: l.id, timestamp: l.timestamp, source_type: l.source_type,
+        safe_source_label: l.source_type + ' scan', finding_counts: l.finding_counts,
+        total_findings: l.total_findings, risk_score: l.risk_score,
+        policy_decision: l.policy_decision, action_taken: l.action_taken,
+        incomplete_scan: l.incomplete_scan,
+      }));
+      localStorage.setItem('promptshield.audit.v1', JSON.stringify(logs));
+    } catch { /* Storage may be disabled; active-session state still works. */ }
   }
 
   getRules(): PolicyRule[] { return this.rules; }
@@ -333,12 +370,29 @@ export class DetectionEngine {
             location: locationLabel,
             location_type: locationType,
             location_meta: { ...locationMeta, start: m.index, end: m.index + val.length },
-            matched_value: val,
+            matched_value: val, detection_source: 'rule',
             explanation: `Rule match: ${rule.name} detected ${rule.category} pattern.`,
             is_blocking: rule.policy_action === 'block'
           });
         }
       }
+    }
+
+    for (const span of detectContext(text)) {
+      const rule = this.compiled.find(r => r.category === span.category);
+      if (!rule) continue;
+      // Deterministic verified matches take priority over contextual predictions.
+      if (findings.some(f => Math.max(span.start, f.location_meta.start) < Math.min(span.end, f.location_meta.end))) continue;
+      findings.push({
+        id: `f_${++findingSeq}_model_${span.start}`, rule_id: rule.id,
+        rule_name: rule.name, category: rule.category, severity: rule.severity,
+        policy_action: rule.policy_action, weight: rule.weight,
+        location: locationLabel, location_type: locationType,
+        location_meta: { ...locationMeta, start: span.start, end: span.end },
+        matched_value: text.slice(span.start, span.end), detection_source: 'model', confidence: span.confidence,
+        explanation: `Local trained context model: ${Math.round(span.confidence * 100)}% model confidence. Review before sharing.`,
+        is_blocking: rule.policy_action === 'block',
+      });
     }
 
     // Deduplicate overlapping spans (keep higher severity)
@@ -415,6 +469,7 @@ export function getEngine(): DetectionEngine {
 // ─── Sanitizer ──────────────────────────────────────────────────────────────
 
 const PLACEHOLDER_PREFIXES: Record<string, string> = {
+  person_name: 'PERSON', address: 'ADDRESS', health_info: 'HEALTH', financial_info: 'FINANCIAL',
   email: 'EMAIL', phone: 'PHONE', account_id: 'ACCOUNT',
   gov_id: 'GOV_ID', credit_card: 'CARD',
   api_key: 'API_KEY', confidential_keyword: 'CONFIDENTIAL',
@@ -461,7 +516,9 @@ export class Sanitizer {
   static sanitizeCsv(rows: string[][], findings: Finding[], engine: DetectionEngine, delimiter = ','): AutoFixResult {
     const map = this.generatePlaceholderMap(findings);
     const formatCell = (cell: string) => {
-      if (cell.includes(delimiter) || cell.includes('"') || cell.includes('\n')) {
+      // Quoting alone does not stop spreadsheet formula execution.
+      if (/^[\s]*[=+@-]/.test(cell) || /^[\t\r]/.test(cell)) cell = "'" + cell;
+      if (cell.includes(delimiter) || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
         return `"${cell.replace(/"/g, '""')}"`;
       }
       return cell;
